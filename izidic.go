@@ -92,3 +92,13 @@ func (dic *Container) MustParam(name string) any {
 	}
 	return p
 }
+
+// New creates a container ready for use.
+func New() *Container {
+	return &Container{
+		Mutex:       sync.Mutex{},
+		parameters:  make(map[string]any),
+		serviceDefs: make(map[string]Service),
+		services:    make(map[string]any),
+	}
+}
