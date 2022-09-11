@@ -1,9 +1,11 @@
-// Package izidic defines a tiny dependency injection container,
-// loosely inspired by a subset of silexphp/pimple.
+// Package izidic defines a tiny dependency injection container.
 //
-// Like Pimple, the basic feature is that storing service definitions does not
-// create instances, allowing users to store definitions of services requiring
-// other services before those are actually defined.
+// The basic feature is that storing service definitions does not create instances,
+// allowing users to store definitions of services requiring other services
+// before those are actually defined.
+//
+// Container writes are not concurrency-safe, so they are locked with Container.Freeze()
+// after the initial setup, which is assumed to be non-concurrent
 package izidic
 
 import (
@@ -22,46 +24,60 @@ type Service func(dic *Container) (any, error)
 
 // Container is the container, holding both parameters and services
 type Container struct {
-	sync.Mutex
-	parameters  map[string]any
-	serviceDefs map[string]Service
-	services    map[string]any
+	sync.RWMutex // Lock for service instances
+	frozen       bool
+	parameters   map[string]any
+	serviceDefs  map[string]Service
+	services     map[string]any
+}
+
+// Freeze converts the container from build mode, which does not support
+// concurrency, to run mode, which does.
+func (dic *Container) Freeze() {
+	dic.frozen = true
 }
 
 // Register registers a service with the container.
 func (dic *Container) Register(name string, fn Service) {
-	dic.Lock()
-	defer dic.Unlock()
+	if dic.frozen {
+		panic("Cannot register services on frozen container")
+	}
 	dic.serviceDefs[name] = fn
 }
 
 // Store stores a parameter in the container.
 func (dic *Container) Store(name string, param any) {
-	dic.Lock()
-	defer dic.Unlock()
+	if dic.frozen {
+		panic("Cannot store parameters on frozen container")
+	}
 	dic.parameters[name] = param
 }
 
 // Service returns the single instance of the requested service on success.
 func (dic *Container) Service(name string) (any, error) {
-	dic.Lock()
-	defer dic.Unlock()
-
 	// Reuse existing instance if any.
+	dic.RLock()
 	instance, found := dic.services[name]
+	dic.RUnlock()
 	if found {
 		return instance, nil
 	}
 
-	// Otherwise instantiate.
+	// Otherwise instantiate. No lock because no concurrent writes can happen:
+	// - during build, recursive calls may happen, but not concurrently
+	// - after freeze, no new services may be created (see Containter.Register)
 	service, found := dic.serviceDefs[name]
 	if !found {
 		return nil, fmt.Errorf("service %s not found", name)
 	}
+
 	instance, err := service(dic)
 	if err != nil {
 		return nil, fmt.Errorf("failed instantiating service %s: %w", name, err)
 	}
+
+	dic.Lock()
+	defer dic.Unlock()
 	dic.services[name] = instance
 
 	return instance, nil
@@ -76,8 +92,9 @@ func (dic *Container) MustService(name string) any {
 }
 
 func (dic *Container) Param(name string) (any, error) {
-	dic.Lock()
-	defer dic.Unlock()
+	dic.RLock()
+	defer dic.RUnlock()
+
 	p, found := dic.parameters[name]
 	if !found {
 		return nil, errors.New("parameter not found")
@@ -96,7 +113,7 @@ func (dic *Container) MustParam(name string) any {
 // New creates a container ready for use.
 func New() *Container {
 	return &Container{
-		Mutex:       sync.Mutex{},
+		RWMutex:     sync.RWMutex{},
 		parameters:  make(map[string]any),
 		serviceDefs: make(map[string]Service),
 		services:    make(map[string]any),
