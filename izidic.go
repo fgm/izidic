@@ -65,7 +65,7 @@ func (dic *Container) Service(name string) (any, error) {
 
 	// Otherwise instantiate. No lock because no concurrent writes can happen:
 	// - during build, recursive calls may happen, but not concurrently
-	// - after freeze, no new services may be created (see Containter.Register)
+	// - after freeze, no new services may be created: see Container.Register
 	service, found := dic.serviceDefs[name]
 	if !found {
 		return nil, fmt.Errorf("service %s not found", name)
