@@ -11,6 +11,7 @@ package izidic
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -35,6 +36,25 @@ type Container struct {
 // concurrency, to run mode, which does.
 func (dic *Container) Freeze() {
 	dic.frozen = true
+}
+
+// Names returns the names of all the parameters and instances defined on the container.
+func (dic *Container) Names() map[string][]string {
+	dump := map[string][]string{
+		"params":   make([]string, 0, len(dic.parameters)),
+		"services": make([]string, 0, len(dic.serviceDefs)),
+	}
+	dic.RLock()
+	defer dic.RUnlock()
+	for k := range dic.parameters {
+		dump["params"] = append(dump["params"], k)
+	}
+	sort.Strings(dump["params"])
+	for k := range dic.serviceDefs {
+		dump["services"] = append(dump["services"], k)
+	}
+	sort.Strings(dump["services"])
+	return dump
 }
 
 // Register registers a service with the container.
