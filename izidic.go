@@ -9,7 +9,6 @@
 package izidic
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -88,7 +87,7 @@ func (dic *Container) Service(name string) (any, error) {
 	// - after freeze, no new services may be created: see Container.Register
 	service, found := dic.serviceDefs[name]
 	if !found {
-		return nil, fmt.Errorf("service %s not found", name)
+		return nil, fmt.Errorf("service not found: %q", name)
 	}
 
 	instance, err := service(dic)
@@ -117,7 +116,7 @@ func (dic *Container) Param(name string) (any, error) {
 
 	p, found := dic.parameters[name]
 	if !found {
-		return nil, errors.New("parameter not found")
+		return nil, fmt.Errorf("parameter not found: %q", name)
 	}
 	return p, nil
 }
