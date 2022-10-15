@@ -1,4 +1,4 @@
-module code.osinet.fr/fgm/izidic
+module github.com/fgm/izidic
 
 go 1.19
 

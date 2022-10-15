@@ -29,7 +29,7 @@ explicit, process, without reflection or code generation, to keep everything in 
 
 | Step                           | Code examples                           |
 |:-------------------------------|-----------------------------------------|
-| Import the package             | `import "code.osinet.fr/fgm/izidic"`    |
+| Import the package             | `import "github.com/fgm/izidic"`        |
 | Initialize a container         | `dic := izidic.New()`                   |
 | Store parameters in the DIC    | `dic.Store("executable", os.Args[0])`   |
 | Register services with the DIC | `dic.Register("logger", loggerService)` |
@@ -92,7 +92,7 @@ import (
 	"io"
 	"log"
 
-	"code.osinet.fr/fgm/izidic"
+	"github.com/fgm/izidic"
 )
 
 type container struct {
