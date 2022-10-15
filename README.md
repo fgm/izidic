@@ -1,6 +1,8 @@
 # IziDIC
 
 [![Tests](https://github.com/fgm/izidic/actions/workflows/go.yml/badge.svg)](https://github.com/fgm/izidic/actions/workflows/go.yml)
+[![codecov](https://codecov.io/gh/fgm/izidic/branch/main/graph/badge.svg?token=R5BMHL3CSH)](https://codecov.io/gh/fgm/izidic)
+
 
 ## Description
 
