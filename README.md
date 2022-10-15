@@ -1,5 +1,11 @@
 # IziDIC
 
+[![Tests](https://github.com/fgm/izidic/actions/workflows/go.yml/badge.svg)](https://github.com/fgm/izidic/actions/workflows/go.yml)
+[![CodeQL](https://github.com/fgm/izidic/actions/workflows/codeql.yml/badge.svg)](https://github.com/fgm/izidic/actions/workflows/codeql.yml)
+[![codecov](https://codecov.io/gh/fgm/izidic/branch/main/graph/badge.svg?token=R5BMHL3CSH)](https://codecov.io/gh/fgm/izidic)
+[![Go Report Card](https://goreportcard.com/badge/github.com/fgm/container)](https://goreportcard.com/report/github.com/fgm/container)
+
+
 ## Description
 
 Package izidic defines a tiny dependency injection container for Go projects.
