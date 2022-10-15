@@ -1,0 +1,34 @@
+name: Tests
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      OS: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.19
+
+    - name: Test
+      # We don't need the benchmarks to run for long, just enough for coverage.
+      run: mkdir -p coverage; go test -v -race -run=. -bench=. -benchtime=1ms -coverprofile=./coverage/cover.out -covermode=atomic ./...
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage/cover.out
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: true
+        verbose: true
+        directory: ./coverage
+        env_vars: OS

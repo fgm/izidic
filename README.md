@@ -1,5 +1,7 @@
 # IziDIC
 
+[![Tests](https://github.com/fgm/izidic/actions/workflows/go.yml/badge.svg)](https://github.com/fgm/izidic/actions/workflows/go.yml)
+
 ## Description
 
 Package izidic defines a tiny dependency injection container for Go projects.
