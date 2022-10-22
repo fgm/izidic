@@ -20,20 +20,25 @@ The basic feature is that storing service definitions does not create instances,
 allowing users to store definitions of services requiring other services
 before those are actually defined.
 
+Notice that parameters do not need to be primitive types.
+For instance, most applications are likely to store a `stdout` object with value `os.Stdout`.
+
 Unlike heavyweights like google/wire or uber/zap, it works as a single step,
 explicit, process, without reflection or code generation, to keep everything in sight.
 
 ## Usage
 
-### Setup
+### Setup and use
 
-| Step                           | Code examples                           |
-|:-------------------------------|-----------------------------------------|
-| Import the package             | `import "github.com/fgm/izidic"`        |
-| Initialize a container         | `dic := izidic.New()`                   |
-| Store parameters in the DIC    | `dic.Store("executable", os.Args[0])`   |
-| Register services with the DIC | `dic.Register("logger", loggerService)` |
-| Freeze the container           | `dic.Freeze()`                          |
+| Step                                | Code examples                           |
+|:------------------------------------|-----------------------------------------|
+| Import the package                  | `import "github.com/fgm/izidic"`        |
+| Initialize a container              | `dic := izidic.New()`                   |
+| Store parameters in the DIC         | `dic.Store("executable", os.Args[0])`   |
+| Register services with the DIC      | `dic.Register("logger", loggerService)` |
+| Freeze the container                | `dic.Freeze()`                          |
+| Read a parameter from the DIC       | `dic.Param(name)`                       |
+| Get a service instance from the DIC | `dic.Service(name)`                     |
 
 Freezing applies once all parameters and services are stored and registered,
 and enables concurrent access to the container.
@@ -144,14 +149,14 @@ more application-domain service instances.
 
 Passing the container, although it works, defines the "service locator" anti-pattern.
 
-Because the container is a complex objects with variable contents,
+Because the container is a complex object with variable contents,
 code receiving the container is hard to test.
 That is the reason why receiving it is typically limited to `izidic.Service` functions,
 which are simple-minded initializers that do not need testing.
 
 Instead, in the service providing a given feature, use something like `appService`:
 - obtain values from the container 
--  pass them to a domain-level factory receiving exactly the typed arguments it needs and no more.
+- pass them to a domain-level factory receiving exactly the typed arguments it needs and nothing more.
 
 In most cases, the value obtained thus will be a `struct` or a `func`,
 ready to be used without further data from the container.
