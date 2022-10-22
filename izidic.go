@@ -9,7 +9,9 @@
 package izidic
 
 import (
+	"errors"
 	"fmt"
+	"runtime"
 	"sort"
 	"sync"
 )
@@ -88,6 +90,30 @@ func (dic *Container) Service(name string) (any, error) {
 	service, found := dic.serviceDefs[name]
 	if !found {
 		return nil, fmt.Errorf("service not found: %q", name)
+	}
+
+	// Loop detection: if the call stack contains more calls to Service reaching
+	// this step than there are services defined in the container, then resolution
+	// for at least one service was attempted more than once, which implies a
+	// dependency cycle.
+	const funcName = "github.com/fgm/izidic.(*Container).Service"
+	// We need a vastly oversized value to cover the case of deeply nested dic.Service() calls.
+	pcs := make([]uintptr, 1e6)
+	n := runtime.Callers(1, pcs)
+	pcs = pcs[:n]
+	frames := runtime.CallersFrames(pcs)
+	serviceCalls := 0
+	for {
+		frame, more := frames.Next()
+		if frame.Func.Name() == funcName {
+			serviceCalls++
+		}
+		if !more {
+			break
+		}
+	}
+	if serviceCalls > len(dic.serviceDefs) {
+		return nil, errors.New("circular dependency detected")
 	}
 
 	instance, err := service(dic)

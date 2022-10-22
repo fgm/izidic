@@ -3,6 +3,7 @@ package izidic
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -208,5 +209,41 @@ func TestContainer_Freeze(t *testing.T) {
 			dic.Freeze()
 			test.attempt(dic)
 		})
+	}
+}
+
+func TestContainer_Service_CircularDeps(t *testing.T) {
+	// We build a 3-level dependency because some simpler strategies to address 2-level (mutual) dependencies do not catch more complex ones,
+	sA := func(c *Container) (any, error) {
+		sC, err := c.Service("sC")
+		if err != nil {
+			return nil, fmt.Errorf("could not get service sC: %w", err)
+		}
+		return sC.(string) + "sA", nil
+	}
+	sB := func(c *Container) (any, error) {
+		sA, err := c.Service("sA")
+		if err != nil {
+			return nil, fmt.Errorf("could not get service sA: %w", err)
+		}
+		return sA.(string) + "sB", nil
+	}
+	sC := func(c *Container) (any, error) {
+		sB, err := c.Service("sB")
+		if err != nil {
+			return nil, fmt.Errorf("could not get service sB: %w", err)
+		}
+		return sB.(string) + "sC", nil
+	}
+
+	dic := New()
+	dic.Register("sA", sA)
+	dic.Register("sB", sB)
+	dic.Register("sC", sC)
+
+	_, err := dic.Service("sA")
+	circulErr := "circular dependency detected"
+	if !strings.HasSuffix(err.Error(), circulErr) {
+		t.Fatalf("got unexpected error: %#v", err)
 	}
 }
