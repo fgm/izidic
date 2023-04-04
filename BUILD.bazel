@@ -1,0 +1,20 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# The gazelle:prefix allows Bazel to determine which packages are project-local
+# gazelle:prefix github.com/fgm/izidic
+gazelle(name = "gazelle")
+
+go_library(
+    name = "izidic",
+    srcs = ["izidic.go"],
+    importpath = "github.com/fgm/izidic",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "izidic_test",
+    srcs = ["izidic_test.go"],
+    embed = [":izidic"],
+    deps = ["@com_github_google_go_cmp//cmp:go_default_library"],
+)
