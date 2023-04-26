@@ -5,7 +5,7 @@
 // before those are actually defined.
 //
 // Container writes are not concurrency-safe, so they are locked with Container.Freeze()
-// after the initial setup, which is assumed to be non-concurrent
+// after the initial setup, which is assumed to be non-concurrent.
 package izidic
 
 import (
@@ -22,10 +22,22 @@ import (
 // which should then be type-asserted before use.
 //
 // Any access to a service from the container returns the same instance.
-type Service func(dic *Container) (any, error)
+type Service func(dic Container) (any, error)
 
-// Container is the container, holding both parameters and services
-type Container struct {
+// Container represents any implementation of a dependency injection container.
+type Container interface {
+	Freeze()
+	MustParam(name string) any
+	MustService(name string) any
+	Names() map[string][]string
+	Param(name string) (any, error)
+	Register(name string, fn Service)
+	Store(name string, param any)
+	Service(name string) (any, error)
+}
+
+// container is the container, holding both parameters and services
+type container struct {
 	sync.RWMutex // Lock for service instances
 	frozen       bool
 	parameters   map[string]any
@@ -35,12 +47,28 @@ type Container struct {
 
 // Freeze converts the container from build mode, which does not support
 // concurrency, to run mode, which does.
-func (dic *Container) Freeze() {
+func (dic *container) Freeze() {
 	dic.frozen = true
 }
 
+func (dic *container) MustParam(name string) any {
+	p, err := dic.Param(name)
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+func (dic *container) MustService(name string) any {
+	instance, err := dic.Service(name)
+	if err != nil {
+		panic(err)
+	}
+	return instance
+}
+
 // Names returns the names of all the parameters and instances defined on the container.
-func (dic *Container) Names() map[string][]string {
+func (dic *container) Names() map[string][]string {
 	dump := map[string][]string{
 		"params":   make([]string, 0, len(dic.parameters)),
 		"services": make([]string, 0, len(dic.serviceDefs)),
@@ -58,24 +86,27 @@ func (dic *Container) Names() map[string][]string {
 	return dump
 }
 
+func (dic *container) Param(name string) (any, error) {
+	dic.RLock()
+	defer dic.RUnlock()
+
+	p, found := dic.parameters[name]
+	if !found {
+		return nil, fmt.Errorf("parameter not found: %q", name)
+	}
+	return p, nil
+}
+
 // Register registers a service with the container.
-func (dic *Container) Register(name string, fn Service) {
+func (dic *container) Register(name string, fn Service) {
 	if dic.frozen {
 		panic("Cannot register services on frozen container")
 	}
 	dic.serviceDefs[name] = fn
 }
 
-// Store stores a parameter in the container.
-func (dic *Container) Store(name string, param any) {
-	if dic.frozen {
-		panic("Cannot store parameters on frozen container")
-	}
-	dic.parameters[name] = param
-}
-
 // Service returns the single instance of the requested service on success.
-func (dic *Container) Service(name string) (any, error) {
+func (dic *container) Service(name string) (any, error) {
 	// Reuse existing instance if any.
 	dic.RLock()
 	instance, found := dic.services[name]
@@ -86,7 +117,7 @@ func (dic *Container) Service(name string) (any, error) {
 
 	// Otherwise instantiate. No lock because no concurrent writes can happen:
 	// - during build, recursive calls may happen, but not concurrently
-	// - after freeze, no new services may be created: see Container.Register
+	// - after freeze, no new services may be created: see container.Register
 	service, found := dic.serviceDefs[name]
 	if !found {
 		return nil, fmt.Errorf("service not found: %q", name)
@@ -96,7 +127,7 @@ func (dic *Container) Service(name string) (any, error) {
 	// this step than there are services defined in the container, then resolution
 	// for at least one service was attempted more than once, which implies a
 	// dependency cycle.
-	const funcName = "github.com/fgm/izidic.(*Container).Service"
+	const funcName = "github.com/fgm/izidic.(*container).Service"
 	// We need a vastly oversized value to cover the case of deeply nested dic.Service() calls.
 	pcs := make([]uintptr, 1e6)
 	n := runtime.Callers(1, pcs)
@@ -128,36 +159,17 @@ func (dic *Container) Service(name string) (any, error) {
 	return instance, nil
 }
 
-func (dic *Container) MustService(name string) any {
-	instance, err := dic.Service(name)
-	if err != nil {
-		panic(err)
+// Store stores a parameter in the container.
+func (dic *container) Store(name string, param any) {
+	if dic.frozen {
+		panic("Cannot store parameters on frozen container")
 	}
-	return instance
-}
-
-func (dic *Container) Param(name string) (any, error) {
-	dic.RLock()
-	defer dic.RUnlock()
-
-	p, found := dic.parameters[name]
-	if !found {
-		return nil, fmt.Errorf("parameter not found: %q", name)
-	}
-	return p, nil
-}
-
-func (dic *Container) MustParam(name string) any {
-	p, err := dic.Param(name)
-	if err != nil {
-		panic(err)
-	}
-	return p
+	dic.parameters[name] = param
 }
 
 // New creates a container ready for use.
-func New() *Container {
-	return &Container{
+func New() Container {
+	return &container{
 		RWMutex:     sync.RWMutex{},
 		parameters:  make(map[string]any),
 		serviceDefs: make(map[string]Service),
