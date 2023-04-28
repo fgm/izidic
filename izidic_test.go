@@ -1,4 +1,4 @@
-package izidic
+package izidic_test
 
 import (
 	"errors"
@@ -6,14 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fgm/izidic"
 	"github.com/google/go-cmp/cmp"
 )
 
 var (
-	s1 = func(c *Container) (any, error) {
+	s1 = func(c izidic.Container) (any, error) {
 		return "s1", nil
 	}
-	s2 = func(c *Container) (any, error) {
+	s2 = func(c izidic.Container) (any, error) {
 		s1, err := c.Service("s1")
 		if err != nil {
 			return nil, fmt.Errorf("could not get service s1: %w", err)
@@ -39,7 +40,7 @@ func TestContainer_Param(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			dic := New()
+			dic := izidic.New()
 			for _, kv := range test.stored {
 				dic.Store(kv.k, kv.v)
 			}
@@ -67,7 +68,7 @@ func TestContainer_MustParam(t *testing.T) {
 			t.Fatalf("got %q, but expected %q", actual.Error(), expected)
 		}
 	}()
-	dic := New()
+	dic := izidic.New()
 	// Happy path
 	dic.Store("k", "v")
 	actual := dic.MustParam("k").(string)
@@ -81,7 +82,7 @@ func TestContainer_MustParam(t *testing.T) {
 
 func TestContainer_Service(t *testing.T) {
 	const expected = "s1s2"
-	dic := New()
+	dic := izidic.New()
 	dic.Register("s1", s1)
 	dic.Register("s2", s2)
 	s, err := dic.Service("s2")
@@ -110,9 +111,9 @@ func TestContainer_MustService_Missing(t *testing.T) {
 			t.Fatalf("got %q, but expected %q", actual.Error(), expected)
 		}
 	}()
-	dic := New()
+	dic := izidic.New()
 	// Happy path
-	s := func(*Container) (any, error) { return 42, nil }
+	s := func(izidic.Container) (any, error) { return 42, nil }
 	dic.Register("s", s)
 	actual := dic.MustService("s").(int)
 	expected, _ := s(dic)
@@ -126,10 +127,10 @@ func TestContainer_MustService_Missing(t *testing.T) {
 
 func TestContainer_Service_Failing(t *testing.T) {
 	instErr := errors.New("failed")
-	s := func(dic *Container) (any, error) {
+	s := func(dic izidic.Container) (any, error) {
 		return nil, instErr
 	}
-	dic := New()
+	dic := izidic.New()
 	dic.Register("s", s)
 	actualService, err := dic.Service("s")
 	if actualService != nil {
@@ -146,12 +147,12 @@ func TestContainer_Service_Failing(t *testing.T) {
 func TestContainer_Service_Reuse(t *testing.T) {
 	const name = "s"
 	counter := 0
-	service := func(dic *Container) (any, error) {
+	service := func(dic izidic.Container) (any, error) {
 		counter++
 		return counter, nil
 	}
 
-	dic := New()
+	dic := izidic.New()
 	dic.Register(name, service)
 	actual := dic.MustService(name).(int)
 	if actual != 1 {
@@ -168,7 +169,7 @@ func TestContainer_Names(t *testing.T) {
 		vpt *string
 		vt  string
 	)
-	dic := New()
+	dic := izidic.New()
 	dic.Store("p1", vt)
 	dic.Store("p2", vpt)
 	dic.Register("s1", s1)
@@ -187,11 +188,11 @@ func TestContainer_Names(t *testing.T) {
 func TestContainer_Freeze(t *testing.T) {
 	tests := [...]struct {
 		name     string
-		attempt  func(*Container)
+		attempt  func(container izidic.Container)
 		expected string
 	}{
-		{"register", func(dic *Container) { dic.Register("p", nil) }, "Cannot register services on frozen container"},
-		{"store", func(dic *Container) { dic.Store("p", "v") }, "Cannot store parameters on frozen container"},
+		{"register", func(dic izidic.Container) { dic.Register("p", nil) }, "Cannot register services on frozen container"},
+		{"store", func(dic izidic.Container) { dic.Store("p", "v") }, "Cannot store parameters on frozen container"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -205,7 +206,7 @@ func TestContainer_Freeze(t *testing.T) {
 					t.Fatalf("Got %s but expected %s", msg, test.expected)
 				}
 			}()
-			dic := New()
+			dic := izidic.New()
 			dic.Freeze()
 			test.attempt(dic)
 		})
@@ -214,21 +215,21 @@ func TestContainer_Freeze(t *testing.T) {
 
 func TestContainer_Service_CircularDeps(t *testing.T) {
 	// We build a 3-level dependency because some simpler strategies to address 2-level (mutual) dependencies do not catch more complex ones,
-	sA := func(c *Container) (any, error) {
+	sA := func(c izidic.Container) (any, error) {
 		sC, err := c.Service("sC")
 		if err != nil {
 			return nil, fmt.Errorf("could not get service sC: %w", err)
 		}
 		return sC.(string) + "sA", nil
 	}
-	sB := func(c *Container) (any, error) {
+	sB := func(c izidic.Container) (any, error) {
 		sA, err := c.Service("sA")
 		if err != nil {
 			return nil, fmt.Errorf("could not get service sA: %w", err)
 		}
 		return sA.(string) + "sB", nil
 	}
-	sC := func(c *Container) (any, error) {
+	sC := func(c izidic.Container) (any, error) {
 		sB, err := c.Service("sB")
 		if err != nil {
 			return nil, fmt.Errorf("could not get service sB: %w", err)
@@ -236,7 +237,7 @@ func TestContainer_Service_CircularDeps(t *testing.T) {
 		return sB.(string) + "sC", nil
 	}
 
-	dic := New()
+	dic := izidic.New()
 	dic.Register("sA", sA)
 	dic.Register("sB", sB)
 	dic.Register("sC", sC)
