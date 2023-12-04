@@ -8,7 +8,8 @@
 
 ## Description
 
-Package [izidic](https://github.com/fgm/izidic) defines a tiny dependency injection container for Go projects.
+Package [izidic](https://github.com/fgm/izidic) defines a tiny dependency injection container for Go projects, 
+inspired by the [Pimple](https://github.com/silexphp/Pimple) DIC for PHP.
 
 That container can hold two different kinds of data:
 
