@@ -72,11 +72,13 @@ which is defined as:
 - Parameter access: `s, err := dic.Param("name")`
   - Check the error against `nil`
   - Type-assert the parameter value: `name, ok := s.(string)`
-  - Or use shortcut: `name := dic.MustParam("name").(string)` 
+  - Or use shortcut: `name := dic.MustParam("name").(string)`
+  - Or the typed helper, which returns an error on mismatch instead of panicking: `name, err := izidic.ParamAs[string](dic, "name")`
 - Service access: `s, err := dic.Service("logger")`
   - Check the error against `nil`
   - Type-assert the service instance value: `logger, ok := s.(*log.Logger)`
   - Or use shortcut: `logger := dic.MustService("logger").(*log.Logger)`
+  - Or the typed helper: `logger, err := izidic.ServiceAs[*log.Logger](dic, "logger")`
 
 
 ## Best practices

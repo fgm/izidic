@@ -248,3 +248,96 @@ func TestContainer_Service_CircularDeps(t *testing.T) {
 		t.Fatalf("got unexpected error: %#v", err)
 	}
 }
+
+func TestParamAs(t *testing.T) {
+	dic := izidic.New()
+	dic.Store("errW", "stdout")
+
+	got, err := izidic.ParamAs[string](dic, "errW")
+	if err != nil {
+		t.Fatalf("ParamAs string: %v", err)
+	}
+	if got != "stdout" {
+		t.Fatalf("got %q, want stdout", got)
+	}
+
+	_, err = izidic.ParamAs[int](dic, "errW")
+	if err == nil {
+		t.Fatal("expected type mismatch")
+	}
+	if !strings.Contains(err.Error(), `param "errW"`) || !strings.Contains(err.Error(), "int") {
+		t.Fatalf("unexpected mismatch error: %v", err)
+	}
+
+	_, err = izidic.ParamAs[string](dic, "missing")
+	if err == nil || !strings.Contains(err.Error(), "parameter not found") {
+		t.Fatalf("unexpected missing error: %v", err)
+	}
+
+	if izidic.MustParamAs[string](dic, "errW") != "stdout" {
+		t.Fatal("MustParamAs")
+	}
+}
+
+func TestParamAs_MustMismatch(t *testing.T) {
+	defer func() {
+		rec := recover()
+		err, ok := rec.(error)
+		if !ok {
+			t.Fatalf("got %#v, want error", rec)
+		}
+		if !strings.Contains(err.Error(), `param "errW"`) {
+			t.Fatalf("unexpected panic: %v", err)
+		}
+	}()
+	dic := izidic.New()
+	dic.Store("errW", "stdout")
+	_ = izidic.MustParamAs[int](dic, "errW")
+}
+
+func TestServiceAs(t *testing.T) {
+	dic := izidic.New()
+	dic.Register("s1", s1)
+	dic.Register("s2", s2)
+
+	got, err := izidic.ServiceAs[string](dic, "s2")
+	if err != nil {
+		t.Fatalf("ServiceAs string: %v", err)
+	}
+	if got != "s1s2" {
+		t.Fatalf("got %q, want s1s2", got)
+	}
+
+	_, err = izidic.ServiceAs[int](dic, "s2")
+	if err == nil {
+		t.Fatal("expected type mismatch")
+	}
+	if !strings.Contains(err.Error(), `service "s2"`) || !strings.Contains(err.Error(), "int") {
+		t.Fatalf("unexpected mismatch error: %v", err)
+	}
+
+	_, err = izidic.ServiceAs[string](dic, "missing")
+	if err == nil || !strings.Contains(err.Error(), "service not found") {
+		t.Fatalf("unexpected missing error: %v", err)
+	}
+
+	if izidic.MustServiceAs[string](dic, "s1") != "s1" {
+		t.Fatal("MustServiceAs")
+	}
+}
+
+func TestServiceAs_MustMismatch(t *testing.T) {
+	defer func() {
+		rec := recover()
+		err, ok := rec.(error)
+		if !ok {
+			t.Fatalf("got %#v, want error", rec)
+		}
+		if !strings.Contains(err.Error(), `service "s1"`) {
+			t.Fatalf("unexpected panic: %v", err)
+		}
+	}()
+	dic := izidic.New()
+	dic.Register("s1", s1)
+	_ = izidic.MustServiceAs[int](dic, "s1")
+}

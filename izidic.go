@@ -11,6 +11,7 @@ package izidic
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"runtime"
 	"sort"
 	"sync"
@@ -175,4 +176,56 @@ func New() Container {
 		serviceDefs: make(map[string]Service),
 		services:    make(map[string]any),
 	}
+}
+
+func typeName[T any]() string {
+	return reflect.TypeOf((*T)(nil)).Elem().String()
+}
+
+// ParamAs returns the named parameter asserted to T.
+// A type mismatch is an error instead of a panic.
+func ParamAs[T any](dic Container, name string) (T, error) {
+	var zero T
+	v, err := dic.Param(name)
+	if err != nil {
+		return zero, err
+	}
+	t, ok := v.(T)
+	if !ok {
+		return zero, fmt.Errorf("param %q: expected %s, got %T", name, typeName[T](), v)
+	}
+	return t, nil
+}
+
+// MustParamAs is ParamAs, panicking on error.
+func MustParamAs[T any](dic Container, name string) T {
+	t, err := ParamAs[T](dic, name)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+// ServiceAs returns the named service instance asserted to T.
+// A type mismatch is an error instead of a panic.
+func ServiceAs[T any](dic Container, name string) (T, error) {
+	var zero T
+	v, err := dic.Service(name)
+	if err != nil {
+		return zero, err
+	}
+	t, ok := v.(T)
+	if !ok {
+		return zero, fmt.Errorf("service %q: expected %s, got %T", name, typeName[T](), v)
+	}
+	return t, nil
+}
+
+// MustServiceAs is ServiceAs, panicking on error.
+func MustServiceAs[T any](dic Container, name string) T {
+	t, err := ServiceAs[T](dic, name)
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
