@@ -3,6 +3,7 @@ package izidic_test
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -246,5 +247,22 @@ func TestContainer_Service_CircularDeps(t *testing.T) {
 	circulErr := "circular dependency detected"
 	if !strings.HasSuffix(err.Error(), circulErr) {
 		t.Fatalf("got unexpected error: %#v", err)
+	}
+}
+
+func TestContainer_Service_CycleDetectAllocs(t *testing.T) {
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	dic := izidic.New()
+	dic.Register("s1", s1)
+	if _, err := dic.Service("s1"); err != nil {
+		t.Fatal(err)
+	}
+	runtime.ReadMemStats(&after)
+	delta := after.TotalAlloc - before.TotalAlloc
+	const oldBuffer = 1_000_000 * 8 // previous fixed 1e6-PC slice
+	if delta >= oldBuffer/2 {
+		t.Fatalf("resolution allocated %d bytes, old cycle buffer was %d", delta, oldBuffer)
 	}
 }
