@@ -47,6 +47,17 @@ type container struct {
 
 // Freeze converts the container from build mode, which does not support
 // concurrency, to run mode, which does.
+//
+// Freeze does not instantiate services. The first Service(name) call for a
+// given service still runs the factory and writes services[name]. Concurrent
+// first-touch of the same not-yet-instantiated service is a check-then-act
+// across two lock regions (RLock read, then later Lock write, with the factory
+// running unlocked in between), so it can run the factory more than once and
+// return different instances, violating the "same instance" guarantee.
+//
+// To use the container concurrently, either warm all services during
+// single-threaded boot, or otherwise ensure first-touch of a given service is
+// serialized.
 func (dic *container) Freeze() {
 	dic.frozen = true
 }
