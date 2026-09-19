@@ -170,3 +170,17 @@ In most cases, the value obtained thus will be a `struct` or a `func`,
 ready to be used without further data from the container.
 
 See a complete demo in [examples/demo.go](examples/demo.go).
+
+## Limitations
+
+Cycle detection counts `Service` frames on the current goroutine by function
+name and compares that count to `len(serviceDefs)` of **this** container. It
+has no notion of which container instance a frame belongs to.
+
+The contract is a single container built from `main()`. A factory in container
+A that resolves a service from a different container B therefore pools both
+containers' `Service` frames. If that pooled depth exceeds B's service count,
+resolution reports `circular dependency detected` on a fully acyclic graph.
+
+Resolving B on its own (no A wrapper) is fine. This is an accepted limitation,
+not something callers should work around with extra containers. See issue #17.
