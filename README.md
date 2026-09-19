@@ -44,6 +44,14 @@ explicit process, without reflection or code generation, to keep everything in s
 Freezing applies once all parameters and services are stored and registered,
 and enables concurrent access to the container.
 
+`Freeze()` does not instantiate services. The first `Service(name)` call for a
+given service still runs its factory and stores the instance — a container write
+that happens after freeze. Concurrent first-touch of the same not-yet-instantiated
+service can run the factory more than once and return different instances,
+which would violate the "same instance" guarantee. Warm all services during
+single-threaded boot, or otherwise serialize first-touch of each service,
+before sharing the container across goroutines.
+
 
 ## Defining parameters
 
