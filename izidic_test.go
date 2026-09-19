@@ -248,3 +248,60 @@ func TestContainer_Service_CircularDeps(t *testing.T) {
 		t.Fatalf("got unexpected error: %#v", err)
 	}
 }
+
+// TestContainer_Service_CrossContainerFalsePositive pins the accepted #17
+// limitation: cycle detection counts Service frames by function name, not by
+// container instance. A factory in c1 that resolves an acyclic chain from c2
+// therefore trips "circular dependency detected" even though neither graph
+// has a cycle. Flip this assertion when #22 lands (path-tracking is
+// per-container, so the false positive disappears).
+func TestContainer_Service_CrossContainerFalsePositive(t *testing.T) {
+	chain := func() izidic.Container {
+		c := izidic.New()
+		c.Register("Z", func(izidic.Container) (any, error) { return "Z", nil })
+		c.Register("Y", func(c izidic.Container) (any, error) {
+			z, err := c.Service("Z")
+			if err != nil {
+				return nil, err
+			}
+			return z.(string) + "Y", nil
+		})
+		c.Register("X", func(c izidic.Container) (any, error) {
+			y, err := c.Service("Y")
+			if err != nil {
+				return nil, err
+			}
+			return y.(string) + "X", nil
+		})
+		return c
+	}
+
+	t.Run("direct c2 is acyclic", func(t *testing.T) {
+		c2 := chain()
+		got, err := c2.Service("X")
+		if err != nil {
+			t.Fatalf("c2.Service(X) directly should succeed on an acyclic chain: %v", err)
+		}
+		if got != "ZYX" {
+			t.Fatalf("c2.Service(X) = %#v, want ZYX", got)
+		}
+	})
+
+	t.Run("c1 wrapping c2 false-positives", func(t *testing.T) {
+		// Fresh c2 so X/Y/Z are not yet cached; the detector then sees
+		// c1.Service + c2.Service(X) + c2.Service(Y) + c2.Service(Z) = 4
+		// frames against c2's 3 defs.
+		c2 := chain()
+		c1 := izidic.New()
+		c1.Register("A", func(izidic.Container) (any, error) {
+			return c2.Service("X")
+		})
+		_, err := c1.Service("A")
+		if err == nil {
+			t.Fatal("known limitation #17: expected circular-dependency false positive when c1 wraps c2.Service(X)")
+		}
+		if !strings.Contains(err.Error(), "circular dependency detected") {
+			t.Fatalf("got unexpected error: %#v", err)
+		}
+	})
+}

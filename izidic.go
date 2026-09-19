@@ -127,6 +127,13 @@ func (dic *container) Service(name string) (any, error) {
 	// this step than there are services defined in the container, then resolution
 	// for at least one service was attempted more than once, which implies a
 	// dependency cycle.
+	//
+	// Known limitation (#17): frames are identified by function name only, with
+	// no receiver. A factory in container A that resolves from a different
+	// container B counts both containers' Service frames together, so an
+	// acyclic graph in B can still trip "circular dependency detected". The
+	// contract is a single container built from main(); this is accepted, not
+	// a bug to paper over. Path-tracking (#22) would make detection per-container.
 	const funcName = "github.com/fgm/izidic.(*container).Service"
 	// We need a vastly oversized value to cover the case of deeply nested dic.Service() calls.
 	pcs := make([]uintptr, 1e6)
