@@ -11,12 +11,14 @@ jobs:
     env:
       OS: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v7
       with:
-        go-version: 1.19
+        # Latest stable toolchain: Staticcheck needs a current Go to build,
+        # and go.mod still sets the floor callers see.
+        go-version: stable
 
     - name: Formatting
       run: "gofmt -d -s ."
@@ -25,9 +27,9 @@ jobs:
       run: "go vet ./..."
 
     - name: StaticCheck
-      uses: dominikh/staticcheck-action@v1.2.0
+      uses: dominikh/staticcheck-action@v1.4.1
       with:
-        version: "2022.1.3"
+        version: "2026.2.2"
         install-go: false
 
     - name: Test
@@ -35,7 +37,7 @@ jobs:
       run: mkdir -p coverage; go test -v -race -run=. -bench=. -benchtime=1ms -coverprofile=./coverage/cover.out -covermode=atomic ./...
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v7
       with:
         files: ./coverage/cover.out
         flags: unittests
