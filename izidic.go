@@ -128,10 +128,15 @@ func (dic *container) Service(name string) (any, error) {
 	// for at least one service was attempted more than once, which implies a
 	// dependency cycle.
 	const funcName = "github.com/fgm/izidic.(*container).Service"
-	// We need a vastly oversized value to cover the case of deeply nested dic.Service() calls.
-	pcs := make([]uintptr, 1e6)
-	n := runtime.Callers(1, pcs)
-	pcs = pcs[:n]
+	pcs := make([]uintptr, 64)
+	for {
+		n := runtime.Callers(1, pcs)
+		if n < len(pcs) {
+			pcs = pcs[:n]
+			break
+		}
+		pcs = make([]uintptr, 2*len(pcs))
+	}
 	frames := runtime.CallersFrames(pcs)
 	serviceCalls := 0
 	for {

@@ -3,6 +3,7 @@ package izidic_test
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -95,6 +96,28 @@ func TestContainer_Service(t *testing.T) {
 	}
 	if actual != expected {
 		t.Fatalf("got %q but expected %q", actual, expected)
+	}
+}
+
+func TestContainer_Service_AvoidsOversizedCycleDetectorAllocation(t *testing.T) {
+	const maxAllocatedBytes = 1 << 20
+
+	runtime.GC()
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	dic := izidic.New()
+	dic.Register("s", s1)
+	_, err := dic.Service("s")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+	allocatedBytes := after.TotalAlloc - before.TotalAlloc
+	if allocatedBytes > maxAllocatedBytes {
+		t.Fatalf("Service allocated %d bytes, expected at most %d", allocatedBytes, maxAllocatedBytes)
 	}
 }
 
